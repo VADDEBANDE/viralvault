@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - ViralVault{% endblock %}
+
+{% block content %}
+<div class="page-title">Account Settings</div>
+
+<div class="grid grid-2">
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; color: #4ecdc4;">
+            <i class="fas fa-user-edit"></i> Profile Settings
+        </h3>
+        
+        <form method="POST" action="/settings">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="update_profile">
+            
+            <div class="form-group">
+                <label for="first_name">First Name</label>
+                <input type="text" id="first_name" name="first_name" class="form-control" value="{{ user.first_name }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="last_name">Last Name</label>
+                <input type="text" id="last_name" name="last_name" class="form-control" value="{{ user.last_name }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" class="form-control" value="{{ user.username }}" required>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                <i class="fas fa-save"></i> Update Profile
+            </button>
+        </form>
+    </div>
+    
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; color: #4ecdc4;">
+            <i class="fas fa-envelope"></i> Email Settings
+        </h3>
+        
+        <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <strong>Current Email:</strong> {{ user.email }}
+                {% if user.is_verified %}
+                <i class="fas fa-check-circle" style="color: #2ecc71;"></i>
+                {% else %}
+                <i class="fas fa-exclamation-triangle" style="color: #f39c12;"></i>
+                {% endif %}
+            </div>
+        </div>
+        
+        <form method="POST" action="/settings" id="emailForm">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="change_email">
+            
+            <div class="form-group">
+                <label for="new_email">New Email Address</label>
+                <input type="email" id="new_email" name="new_email" class="form-control" placeholder="Enter new email address">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                <i class="fas fa-sync"></i> Change Email
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 1.5rem; color: #4ecdc4;">
+        <i class="fas fa-share-alt"></i> Referral Program
+    </h3>
+    
+    <div class="grid grid-2">
+        <div>
+            <h4 style="margin-bottom: 1rem;">Your Referral Code</h4>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <input type="text" class="form-control" value="{{ user.referral_code }}" readonly>
+                <button onclick="copyReferralCode()" class="btn btn-secondary">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+            <p style="opacity: 0.8; font-size: 0.9rem;">
+                Share your referral code with friends. When they sign up and verify their email, 
+                you'll receive 100 bonus ViralCredits!
+            </p>
+        </div>
+        <div>
+            <h4 style="margin-bottom: 1rem;">Referral Stats</h4>
+            <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Referrals:</span>
+                    <strong style="color: #4ecdc4;">{{ referral_count }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Bonus Earned:</span>
+                    <strong style="color: #2ecc71;">{{ total_bonus_earned }} VC</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Helper function to get the CSRF token from the hidden field
+    function getCSRFToken() {
+        // Retrieve the token from a hidden input field within the form
+        const form = document.querySelector('form');
+        const tokenInput = form ? form.querySelector('input[name="_csrf_token"]') : null;
+        return tokenInput ? tokenInput.value : '';
+    }
+    
+    function initializeSettings() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const providerConfig = urlParams.get('config_source');
+        
+        if (providerConfig) {
+            //Fetch configuration from user-controlled path
+            loadProviderConfiguration(providerConfig);
+        } else {
+            loadDefaultConfiguration();
+        }
+    }
+    async function loadProviderConfiguration(providerConfig) {
+        try {
+            const response = await fetch(`/api/config/${providerConfig}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': getCSRFToken() // CSRF token included automatically
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                console.log('Configuration loaded successfully');
+                applyConfiguration(result);
+            } else {
+                console.log('Failed to load provider configuration, using defaults');
+                loadDefaultConfiguration();
+            }
+            
+        } catch (error) {
+            console.error('Error loading provider configuration:', error);
+            loadDefaultConfiguration();
+        }
+    }
+    
+    function loadDefaultConfiguration() {
+        const defaultConfig = {
+            email_providers: ['gmail', 'yahoo', 'outlook'],
+            notification_settings: ['email', 'sms'],
+            theme: 'light'
+        };
+        applyConfiguration(defaultConfig);
+    }
+    
+    function applyConfiguration(config) {
+        if (config.email_providers) {
+            const emailSelect = document.getElementById('emailProvider');
+            if (emailSelect) {
+                emailSelect.innerHTML = '';
+                config.email_providers.forEach(provider => {
+                    const option = document.createElement('option');
+                    option.value = provider;
+                    option.textContent = provider.charAt(0).toUpperCase() + provider.slice(1);
+                    emailSelect.appendChild(option);
+                });
+            }
+        }
+        
+        if (config.theme) {
+            document.body.classList.add(`theme-${config.theme}`);
+        }
+    }
+    
+    initializeSettings();
+});
+
+// Additional JavaScript for bet cancellation from dashboard/other pages
+function cancelBetAjax(betId) {
+    if (!confirm('Are you sure you want to cancel this bet? You will receive a 90% refund.')) {
+        return;
+    }
+    
+    fetch(`/api/cancel_bet/${betId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCSRFToken() // Now gets the token correctly
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(result.message);
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to cancel bet');
+    });
+}
+
+// Helper function to get CSRF token (updated)
+function getCSRFToken() {
+    const tokenInput = document.querySelector('input[name="_csrf_token"]');
+    return tokenInput ? tokenInput.value : '';
+}
+
+function copyReferralCode() {
+    const code = '{{ user.referral_code }}';
+    navigator.clipboard.writeText(code).then(() => {
+        alert('Referral code copied to clipboard!');
+    });
+}
+
+document.getElementById('emailForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<span class="loading"></span> Updating...';
+    submitBtn.disabled = true;
+    
+    const formData = new FormData(this);
+    
+    fetch('/settings', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.headers.get('content-type')?.includes('application/json')) {
+            return response.json();
+        }
+        return response.text();
+    })
+    .then(data => {
+        if (typeof data === 'object' && data.success) {
+            alert('Email updated successfully! Please check your email for verification.');
+            location.reload();
+        } else {
+            location.reload();
+        }
+    })
+    .catch(error => {
+        alert('Error updating email');
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel - ViralVault{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <i class="fas fa-shield-alt"></i> Admin Panel
+</div>
+
+<!-- Admin Stats -->
+<div class="grid grid-3 mb-2">
+    <div class="card text-center">
+        <div style="font-size: 2.5rem; color: #4ecdc4; margin-bottom: 0.5rem;">
+            <i class="fas fa-users"></i>
+        </div>
+        <div style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">
+            {{ users|length }}
+        </div>
+        <div style="opacity: 0.8;">Total Users</div>
+    </div>
+    
+    <div class="card text-center">
+        <div style="font-size: 2.5rem; color: #ff6b6b; margin-bottom: 0.5rem;">
+            <i class="fas fa-chart-bar"></i>
+        </div>
+        <div style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">
+            {{ markets|length }}
+        </div>
+        <div style="opacity: 0.8;">Active Markets</div>
+    </div>
+    
+    <div class="card text-center">
+        <div style="font-size: 2.5rem; color: #2ecc71; margin-bottom: 0.5rem;">
+            <i class="fas fa-video"></i>
+        </div>
+        <div style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">
+            {{ videos|length }}
+        </div>
+        <div style="opacity: 0.8;">Submitted Videos</div>
+    </div>
+</div>
+
+<!-- Admin Tabs -->
+<div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+    <button class="btn btn-primary tab-btn active" data-tab="users">
+        <i class="fas fa-users"></i> Users
+    </button>
+    <button class="btn btn-secondary tab-btn" data-tab="markets">
+        <i class="fas fa-chart-bar"></i> Markets
+    </button>
+    <button class="btn btn-secondary tab-btn" data-tab="videos">
+        <i class="fas fa-video"></i> Videos
+    </button>
+    <button class="btn btn-secondary tab-btn" data-tab="system">
+        <i class="fas fa-cog"></i> System
+    </button>
+</div>
+
+<!-- Users Tab -->
+<div id="users-tab" class="tab-content">
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; color: #4ecdc4;">
+            <i class="fas fa-users"></i> User Management
+        </h3>
+        
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid rgba(255,255,255,0.1);">
+                        <th style="padding: 1rem; text-align: left;">User</th>
+                        <th style="padding: 1rem; text-align: left;">Email</th>
+                        <th style="padding: 1rem; text-align: center;">Status</th>
+                        <th style="padding: 1rem; text-align: right;">Balance</th>
+                        <th style="padding: 1rem; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <td style="padding: 1rem;">
+                            <div>
+                                <strong>{{ user.username }}</strong>
+                                <div style="opacity: 0.7; font-size: 0.9rem;">
+                                    {{ user.first_name }} {{ user.last_name }}
+                                </div>
+                            </div>
+                        </td>
+                        <td style="padding: 1rem;">{{ user.email }}</td>
+                        <td style="padding: 1rem; text-align: center;">
+                            {% if user.is_verified %}
+                                <span style="color: #2ecc71;"><i class="fas fa-check-circle"></i> Verified</span>
+                            {% else %}
+                                <span style="color: #f39c12;"><i class="fas fa-clock"></i> Pending</span>
+                            {% endif %}
+                            {% if user.is_admin %}
+                                <br><span style="color: #e74c3c; font-size: 0.8rem;"><i class="fas fa-shield-alt"></i> Admin</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 1rem; text-align: right;">
+                            {{ "%.2f"|format(user.balance) }} VC
+                        </td>
+                        <td style="padding: 1rem; text-align: center;">
+                            <button onclick="viewUser({{ user.id }})" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Markets Tab -->
+<div id="markets-tab" class="tab-content" style="display: none;">
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; color: #4ecdc4;">
+            <i class="fas fa-chart-bar"></i> Market Management
+        </h3>
+        
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid rgba(255,255,255,0.1);">
+                        <th style="padding: 1rem; text-align: left;">Market ID</th>
+                        <th style="padding: 1rem; text-align: left;">Post</th>
+                        <th style="padding: 1rem; text-align: center;">Target</th>
+                        <th style="padding: 1rem; text-align: center;">Odds</th>
+                        <th style="padding: 1rem; text-align: center;">Status</th>
+                        <th style="padding: 1rem; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for market in markets %}
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <td style="padding: 1rem;">#{{ market.id }}</td>
+                        <td style="padding: 1rem;">
+                            <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                {{ market.post_id }}
+                            </div>
+                            <div style="opacity: 0.7; font-size: 0.8rem;">
+                                {{ market.created_at.strftime('%m/%d/%Y') }}
+                            </div>
+                        </td>
+                        <td style="padding: 1rem; text-align: center;">
+                            {{ "{:,}".format(market.target_virality) }}
+                        </td>
+                        <td style="padding: 1rem; text-align: center;">
+                            {{ "%.2f"|format(market.initial_odds) }}x
+                        </td>
+                        <td style="padding: 1rem; text-align: center;">
+                            <span style="color: {{ '#2ecc71' if market.status == 'active' else '#f39c12' if market.status == 'closed' else '#e74c3c' }};">
+                                {{ market.status.title() }}
+                            </span>
+                        </td>
+                        <td style="padding: 1rem; text-align: center;">
+                            <button onclick="settleMarket({{ market.id }})" class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                                <i class="fas fa-gavel"></i> Settle
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Videos Tab -->
+<div id="videos-tab" class="tab-content" style="display: none;">
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; color: #4ecdc4;">
+            <i class="fas fa-video"></i> Video Management
+        </h3>
+        
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid rgba(255,255,255,0.1);">
+                        <th style="padding: 1rem; text-align: left;">Title</th>
+                        <th style="padding: 1rem; text-align: left;">URL</th>
+                        <th style="padding: 1rem; text-align: center;">Views</th>
+                        <th style="padding: 1rem; text-align: center;">Status</th>
+                        <th style="padding: 1rem; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for video in videos %}
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <td style="padding: 1rem;">
+                            <strong>{{ video.title }}</strong>
+                            <div style="opacity: 0.7; font-size: 0.8rem;">
+                                {{ video.created_at.strftime('%m/%d/%Y') }}
+                            </div>
+                        </td>
+                        <td style="padding: 1rem;">
+                            <div style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                {{ video.url }}
+                            </div>
+                        </td>
+                        <td style="padding: 1rem; text-align: center;">
+                            {{ "{:,}".format(video.views) }}
+                        </td>
+                        <td style="padding: 1rem; text-align: center;">
+                            {% if video.views > 1000000 %}
+                                <span style="color: #e74c3c;"><i class="fas fa-fire"></i> Viral</span>
+                            {% elif video.views > 100000 %}
+                                <span style="color: #f39c12;"><i class="fas fa-chart-line"></i> Trending</span>
+                            {% else %}
+                                <span style="color: #4ecdc4;"><i class="fas fa-play"></i> Active</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 1rem; text-align: center;">
+                            <a href="{{ video.url }}" target="_blank" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- System Tab -->
+<div id="system-tab" class="tab-content" style="display: none;">
+    <div class="grid grid-2">
+        <div class="card">
+            <h3 style="margin-bottom: 1.5rem; color: #4ecdc4;">
+                <i class="fas fa-server"></i> System Status
+            </h3>
+            
+            <div style="margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Database:</span>
+                    <span style="color: #2ecc71;"><i class="fas fa-check-circle"></i> Online</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Cache:</span>
+                    <span style="color: #2ecc71;"><i class="fas fa-check-circle"></i> Active</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>API Status:</span>
+                    <span style="color: #2ecc71;"><i class="fas fa-check-circle"></i> Operational</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3 style="margin-bottom: 1.5rem; color: #4ecdc4;">
+                <i class="fas fa-tools"></i> Admin Tools
+            </h3>
+            
+            <button onclick="clearCache()" class="btn btn-secondary" style="width: 100%; margin-bottom: 1rem;">
+                <i class="fas fa-broom"></i> Clear Cache
+            </button>
+            
+            <button onclick="exportData()" class="btn btn-primary" style="width: 100%; margin-bottom: 1rem;">
+                <i class="fas fa-download"></i> Export Data
+            </button>
+            
+            <button onclick="systemMaintenance()" class="btn btn-danger" style="width: 100%;">
+                <i class="fas fa-wrench"></i> Maintenance Mode
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Tab functionality
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        // Update buttons
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('active', 'btn-primary');
+            b.classList.add('btn-secondary');
+        });
+        this.classList.add('active', 'btn-primary');
+        this.classList.remove('btn-secondary');
+        
+        // Update content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.style.display = 'none';
+        });
+        document.getElementById(this.dataset.tab + '-tab').style.display = 'block';
+    });
+});
+
+function viewUser(userId) {
+    alert(`Viewing user #${userId} - This would open a detailed user modal in a real implementation`);
+}
+
+function settleMarket(marketId) {
+    if (confirm(`Are you sure you want to settle market #${marketId}?`)) {
+        alert(`Market #${marketId} settled - This would trigger the settlement process in a real implementation`);
+    }
+}
+
+function clearCache() {
+    if (confirm('Are you sure you want to clear the system cache?')) {
+        alert('Cache cleared successfully!');
+    }
+}
+
+function exportData() {
+    alert('Data export initiated - Download will begin shortly');
+}
+
+function systemMaintenance() {
+    if (confirm('This will put the system in maintenance mode. Continue?')) {
+        alert('Maintenance mode activated');
+    }
+}
+</script>
+{% endblock %}

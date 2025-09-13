@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - ViralVault{% endblock %}
+
+{% block content %}
+<div class="page-title">My Profile</div>
+
+<div class="grid grid-2">
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; color: #4ecdc4;">
+            <i class="fas fa-user-circle"></i> Account Details
+        </h3>
+        
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <div style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(45deg, #ff6b6b, #4ecdc4); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; font-size: 2rem;">
+                {{ user.first_name[0] }}{{ user.last_name[0] }}
+            </div>
+            <h3>{{ user.first_name }} {{ user.last_name }}</h3>
+            <p style="opacity: 0.7;">@{{ user.username }}</p>
+        </div>
+        
+        <div class="form-group">
+            <label>Email Address</label>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="email" class="form-control" value="{{ user.email }}" readonly>
+                {% if user.is_verified %}
+                <i class="fas fa-check-circle" style="color: #2ecc71;"></i>
+                {% else %}
+                <i class="fas fa-exclamation-triangle" style="color: #f39c12;"></i>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>Member Since</label>
+            <input type="text" class="form-control" value="{{ user.created_at.strftime('%B %d, %Y') }}" readonly>
+        </div>
+        
+        <div class="form-group">
+            <label>Referral Code</label>
+            <div style="display: flex; gap: 0.5rem;">
+                <input type="text" class="form-control" value="{{ user.referral_code }}" readonly>
+                <button onclick="copyCode()" class="btn btn-secondary">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        </div>
+        
+        <a href="/settings" class="btn btn-primary" style="width: 100%;">
+            <i class="fas fa-cog"></i> Edit Profile
+        </a>
+    </div>
+    
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; color: #4ecdc4;">
+            <i class="fas fa-chart-pie"></i> Betting Statistics
+        </h3>
+        
+        <div class="grid grid-2" style="margin-bottom: 2rem;">
+            <div style="text-align: center; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px;">
+                <div style="font-size: 2rem; color: #4ecdc4; margin-bottom: 0.5rem;">
+                    {{ "%.2f"|format(user.balance) }}
+                </div>
+                <div style="opacity: 0.7;">ViralCredits</div>
+            </div>
+            <div style="text-align: center; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px;">
+                <div style="font-size: 2rem; color: #2ecc71; margin-bottom: 0.5rem;">
+                    73%
+                </div>
+                <div style="opacity: 0.7;">Win Rate</div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 1rem;">
+            <button onclick="loadBettingHistory()" class="btn btn-secondary" style="width: 100%;">
+                <i class="fas fa-history"></i> View Betting History
+            </button>
+        </div>
+        
+        <div id="bettingHistory" style="display: none;">
+            <!-- Betting history will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<script>
+function copyCode() {
+    const code = '{{ user.referral_code }}';
+    navigator.clipboard.writeText(code).then(() => {
+        alert('Referral code copied to clipboard!');
+    });
+}
+
+function loadBettingHistory() {
+    const historyDiv = document.getElementById('bettingHistory');
+    if (historyDiv.style.display === 'none') {
+        historyDiv.innerHTML = '<div class="loading" style="text-align: center; margin: 2rem;"></div>';
+        historyDiv.style.display = 'block';
+        
+        fetch('/api/bettinghistory')
+        .then(response => response.json())
+        .then(data => {
+            if (data.bets && data.bets.length > 0) {
+                historyDiv.innerHTML = data.bets.map(bet => `
+                    <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; border-left: 4px solid ${bet.is_winner ? '#2ecc71' : bet.is_winner === false ? '#e74c3c' : '#f39c12'};">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <strong>${bet.amount} VC - ${bet.prediction.toUpperCase()}</strong>
+                            <span style="color: ${bet.is_winner ? '#2ecc71' : bet.is_winner === false ? '#e74c3c' : '#f39c12'};">
+                                ${bet.is_winner === null ? 'Pending' : bet.is_winner ? 'Won' : 'Lost'}
+                            </span>
+                        </div>
+                        <div style="opacity: 0.7; font-size: 0.9rem;">
+                            Market: ${bet.market_post_id}<br>
+                            Date: ${bet.created_at}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                historyDiv.innerHTML = '<p style="text-align: center; opacity: 0.6; padding: 2rem;">No betting history found.</p>';
+            }
+        })
+        .catch(error => {
+            historyDiv.innerHTML = '<p style="text-align: center; color: #e74c3c; padding: 2rem;">Error loading betting history.</p>';
+        });
+    } else {
+        historyDiv.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

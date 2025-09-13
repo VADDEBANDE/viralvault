@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Submit Video - ViralVault{% endblock %}
+
+{% block content %}
+<div class="page-title">Submit New Video</div>
+
+<div style="max-width: 600px; margin: 0 auto;">
+    <div class="card">
+        <form method="POST" id="submitVideoForm">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="url">
+                    <i class="fas fa-link"></i> Video URL
+                </label>
+                <input type="url" id="url" name="url" class="form-control" 
+                            placeholder="https://tiktok.com/@user/video/123..." required>
+                <div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.5rem;">
+                    Supported platforms: TikTok, YouTube
+                </div>
+            </div>
+            
+            <div id="loadingMessage" style="display: none; text-align: center; margin: 1rem 0;">
+                <span class="loading"></span> Fetching video details...
+            </div>
+
+            <div class="form-group" id="titleGroup" style="display: none;">
+                <label for="title">
+                    <i class="fas fa-heading"></i> Video Title
+                </label>
+                <input type="text" id="title" name="title" class="form-control" required>
+            </div>
+            
+            <div class="form-group" id="descriptionGroup" style="display: none;">
+                <label for="description">
+                    <i class="fas fa-align-left"></i> Description
+                </label>
+                <textarea id="description" name="description" class="form-control" 
+                                rows="4" placeholder="Describe the video content..."></textarea>
+                <div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.5rem;">
+                    Optional: Add tags, context, or why you think it might go viral
+                </div>
+            </div>
+            
+            <div style="background: rgba(78, 205, 196, 0.1); border: 1px solid rgba(78, 205, 196, 0.3); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                <i class="fas fa-info-circle" style="color: #4ecdc4;"></i>
+                <strong>How it works:</strong> After submission, our system will analyze the video and create betting markets based on its viral potential.
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                <i class="fas fa-upload"></i> Submit Video
+            </button>
+        </form>
+    </div>
+    
+    <div class="card">
+        <h3 style="margin-bottom: 1rem; color: #4ecdc4;">
+            <i class="fas fa-lightbulb"></i> Tips for Better Submissions
+        </h3>
+        <ul style="line-height: 1.8; opacity: 0.9;">
+            <li>Choose videos with high engagement potential</li>
+            <li>Look for trending topics, challenges, or unique content</li>
+            <li>Consider the creator's follower count and engagement rate</li>
+            <li>Fresh content (posted within last 24 hours) often performs better</li>
+            <li>Videos with emotional appeal tend to go viral faster</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+// Helper function to get the CSRF token from the hidden field
+function getCSRFToken() {
+    const tokenInput = document.querySelector('input[name="_csrf_token"]');
+    return tokenInput ? tokenInput.value : '';
+}
+
+document.getElementById('submitVideoForm').addEventListener('submit', function(e) {
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.innerHTML = '<span class="loading"></span> Analyzing Video...';
+    submitBtn.disabled = true;
+});
+
+document.getElementById('url').addEventListener('input', function() {
+    const url = this.value;
+    const titleGroup = document.getElementById('titleGroup');
+    const descriptionGroup = document.getElementById('descriptionGroup');
+    const titleField = document.getElementById('title');
+    const descriptionField = document.getElementById('description');
+    const loadingMessage = document.getElementById('loadingMessage');
+    
+    titleField.value = '';
+    descriptionField.value = '';
+    titleField.disabled = false;
+    descriptionField.disabled = false;
+
+    if (url.includes('tiktok.com')) {
+        titleGroup.style.display = 'block';
+        titleField.placeholder = 'TikTok Video - Enter a descriptive title';
+        titleField.required = true;
+        descriptionGroup.style.display = 'none';
+        descriptionField.required = false;
+        loadingMessage.style.display = 'none';
+    } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        titleGroup.style.display = 'none';
+        descriptionGroup.style.display = 'none';
+        loadingMessage.style.display = 'block';
+
+        fetch('/submit_video', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': getCSRFToken() // Add this line
+            },
+            body: JSON.stringify({ url: url })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                titleField.value = data.title;
+                descriptionField.value = data.description;
+                titleField.disabled = true;
+                descriptionField.disabled = true;
+            } else {
+                alert('Failed to fetch YouTube video details. Please enter manually.');
+                titleField.placeholder = 'YouTube Video - Enter a descriptive title';
+                descriptionField.placeholder = 'Describe the video content...';
+            }
+        })
+        .catch(error => {
+            alert('Error fetching YouTube video details.');
+            titleField.placeholder = 'YouTube Video - Enter a descriptive title';
+            descriptionField.placeholder = 'Describe the video content...';
+        })
+        .finally(() => {
+            titleGroup.style.display = 'block';
+            descriptionGroup.style.display = 'block';
+            loadingMessage.style.display = 'none';
+            titleField.required = true;
+            descriptionField.required = false;  
+        });
+    } else {
+        titleGroup.style.display = 'none';
+        descriptionGroup.style.display = 'none';
+        loadingMessage.style.display = 'none';
+        titleField.required = false;
+        descriptionField.required = false;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Videos - ViralVault{% endblock %}
+
+{% block content %}
+<div class="page-title">Video Gallery</div>
+<!-- Add a hidden CSRF token input field for JavaScript to access -->
+<input type="hidden" id="csrf_token_input" value="{{ csrf_token() }}">
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <button class="btn btn-primary filter-btn active" data-filter="all">All Videos</button>
+        <button class="btn btn-secondary filter-btn" data-filter="viral">Viral</button>
+        <button class="btn btn-secondary filter-btn" data-filter="trending">Trending</button>
+    </div>
+    <a href="/submit_video" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Submit Video
+    </a>
+</div>
+
+<div class="grid grid-3" id="videosGrid">
+    {% for video in videos %}
+    <div class="card video-card" data-category="{{ 'viral' if video.views > 1000000 else 'trending' if video.views > 100000 else 'normal' }}">
+        <div style="position: relative; margin-bottom: 1rem;">
+            {% if video.thumbnail %}
+            <div style="width: 100%; height: 200px; background: url('{{ video.thumbnail }}') no-repeat center center; background-size: cover; border-radius: 8px;"></div>
+            {% else %}
+            <div style="width: 100%; height: 200px; background: linear-gradient(45deg, #667eea, #764ba2); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem;">
+                {% if 'tiktok' in video.url %}
+                <i class="fab fa-tiktok"></i>
+                {% else %}
+                <i class="fas fa-video"></i>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% if video.views > 1000000 %}
+            <div style="position: absolute; top: 10px; right: 10px; background: #e74c3c; color: white; padding: 0.3rem 0.6rem; border-radius: 12px; font-size: 0.8rem;">
+                <i class="fas fa-fire"></i> VIRAL
+            </div>
+            {% elif video.views > 100000 %}
+            <div style="position: absolute; top: 10px; right: 10px; background: #f39c12; color: white; padding: 0.3rem 0.6rem; border-radius: 12px; font-size: 0.8rem;">
+                <i class="fas fa-chart-line"></i> TRENDING
+            </div>
+            {% endif %}
+        </div>
+        
+        <h4 style="margin-bottom: 0.5rem;">{{ video.title }}</h4>
+        <p style="opacity: 0.8; font-size: 0.9rem; margin-bottom: 1rem; line-height: 1.4;">
+    {% set safe_description = video.description|safe %}
+    {{ safe_description[:100] }}{% if video.description|length > 100 %}...{% endif %}
+</p>
+
+
+        
+        <div class="grid grid-2" style="gap: 0.5rem; margin-bottom: 1rem; font-size: 0.9rem;">
+            <div style="text-align: center; background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 6px;">
+                <div style="color: #4ecdc4; font-weight: bold;">{{ "{:,}".format(video.views) }}</div>
+                <div style="opacity: 0.7;">Views</div>
+            </div>
+            <div style="text-align: center; background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 6px;">
+                <div style="color: #ff6b6b; font-weight: bold;">{{ "{:,}".format(video.likes) }}</div>
+                <div style="opacity: 0.7;">Likes</div>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem;">
+            <a href="{{ video.url }}" target="_blank" class="btn btn-secondary" style="flex: 1; font-size: 0.8rem;">
+                <i class="fas fa-external-link-alt"></i> View Original
+            </a>
+            <button onclick="updateStats({{ video.id }})" class="btn btn-primary" style="font-size: 0.8rem;">
+                <i class="fas fa-sync"></i>
+            </button>
+        </div>
+        
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8rem; opacity: 0.7;">
+            Submitted {{ video.created_at.strftime('%m/%d/%Y') }}
+        </div>
+    </div>
+    {% else %}
+    <div style="text-align: center; opacity: 0.6; padding: 4rem; grid-column: span 3;">
+        <i class="fas fa-video" style="font-size: 4rem; margin-bottom: 1rem;"></i>
+        <h3>No Videos Yet</h3>
+        <p>Be the first to submit a video and start the viral betting revolution!</p>
+        <a href="/submit_video" class="btn btn-primary" style="margin-top: 1rem;">
+            <i class="fas fa-upload"></i> Submit First Video
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+// Helper function to get the CSRF token from the hidden input field
+function getCSRFToken() {
+    const tokenInput = document.getElementById('csrf_token_input');
+    return tokenInput ? tokenInput.value : '';
+}
+
+// Filter functionality
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(b => {
+            b.classList.remove('active', 'btn-primary');
+            b.classList.add('btn-secondary');
+        });
+        
+        this.classList.add('active', 'btn-primary');
+        this.classList.remove('btn-secondary');
+        
+        const filter = this.dataset.filter;
+        document.querySelectorAll('.video-card').forEach(card => {
+            if (filter === 'all' || card.dataset.category === filter) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+});
+
+function updateStats(videoId) {
+    const btn = event.target;
+    const originalContent = btn.innerHTML;
+    btn.innerHTML = '<span class="loading"></span>';
+    btn.disabled = true;
+    
+    fetch('/api/update_video_stats', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCSRFToken() 
+        },
+        body: JSON.stringify({ video_id: videoId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            throw new Error('Failed to update stats');
+        }
+    })
+    .catch(error => {
+        alert('Error updating stats');
+    })
+    .finally(() => {
+        btn.innerHTML = originalContent;
+        btn.disabled = false;
+    });
+}
+</script>
+{% endblock %}

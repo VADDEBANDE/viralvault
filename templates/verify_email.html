@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Email - ViralVault{% endblock %}
+
+{% block content %}
+<div class="page-title">Verify Your Email</div>
+
+<div style="max-width: 400px; margin: 0 auto;">
+    <div class="card text-center">
+        <div style="font-size: 3rem; color: #4ecdc4; margin-bottom: 1rem;">
+            <i class="fas fa-envelope-open"></i>
+        </div>
+        <h3 style="margin-bottom: 1rem;">Check Your Email</h3>
+        <p style="opacity: 0.8; margin-bottom: 2rem;">
+            We've sent a verification code to<br>
+            <strong>{{ user.email }}</strong>
+        </p>
+        
+        <form method="POST">
+            <input type="hidden" name="_csrf_token" id="csrf_token_input" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="verification_code">Verification Code</label>
+                <input type="text" id="verification_code" name="verification_code" 
+                       class="form-control" placeholder="Enter 6-digit code" 
+                       maxlength="6" style="text-align: center; font-size: 1.5rem; letter-spacing: 0.2rem;">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                <i class="fas fa-check"></i> Verify Email
+            </button>
+        </form>
+        
+        <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+            <p style="opacity: 0.6; font-size: 0.9rem;">Didn't receive the code?</p>
+            <button onclick="resendCode(this)" class="btn btn-secondary" style="margin-top: 0.5rem;">
+                <i class="fas fa-redo"></i> Resend Code
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Helper function to get the CSRF token from the hidden input field
+    function getCSRFToken() {
+        const tokenInput = document.getElementById('csrf_token_input');
+        return tokenInput ? tokenInput.value : '';
+    }
+
+    async function resendCode(btn) {
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<span class="loading"></span> Sending...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/resend_verification_code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': getCSRFToken()
+                },
+                body: JSON.stringify({ email: '{{ user.email }}' })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                alert('Verification code resent successfully!');
+            } else {
+                alert('Failed to resend code: ' + (data.error || 'Unknown error.'));
+            }
+        } catch (error) {
+            console.error("Resend code error:", error);
+            alert('An error occurred. Please try again.');
+        } finally {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+    }
+
+    // Auto-focus and format verification code input
+    document.getElementById('verification_code').addEventListener('input', function(e) {
+        this.value = this.value.replace(/[^0-9]/g, '');
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Login - ViralVault{% endblock %}
+
+{% block content %}
+<div class="page-title">Welcome Back</div>
+
+<div style="max-width: 400px; margin: 0 auto;">
+    <div class="card">
+        <form method="POST" id="loginForm">
+            <div class="form-group">
+                <label for="username">
+                    <i class="fas fa-user"></i> Username
+                </label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="Enter your username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">
+                    <i class="fas fa-lock"></i> Password
+                </label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="Enter your password" required>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-bottom: 1rem;">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </button>
+        </form>
+        
+        <div class="text-center">
+            <p style="margin-bottom: 1rem; opacity: 0.8;">Don't have an account?</p>
+            <a href="/register" class="btn btn-secondary">
+                <i class="fas fa-user-plus"></i> Create Account
+            </a>
+        </div>
+    </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.innerHTML = '<span class="loading"></span> Logging in...';
+    submitBtn.disabled = true;
+});
+</script>
+{% endblock %}

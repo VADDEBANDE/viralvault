@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up - ViralVault{% endblock %}
+
+{% block content %}
+<div class="page-title">Join ViralVault</div>
+
+<div style="max-width: 500px; margin: 0 auto;">
+    <div class="card">
+        <form method="POST" id="registerForm">
+            <input type="hidden" name="_csrf_token" id="csrf_token_input" value="{{ csrf_token() }}">
+            <div class="grid grid-2">
+                <div class="form-group">
+                    <label for="first_name">
+                        <i class="fas fa-user"></i> First Name
+                    </label>
+                    <input type="text" id="first_name" name="first_name" class="form-control" placeholder="Your first name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="last_name">
+                        <i class="fas fa-user"></i> Last Name
+                    </label>
+                    <input type="text" id="last_name" name="last_name" class="form-control" placeholder="Your last name" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="username">
+                    <i class="fas fa-at"></i> Username
+                </label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="Choose a username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">
+                    <i class="fas fa-envelope"></i> Email Address
+                </label>
+                <input type="email" id="email" name="email" class="form-control" placeholder="your@email.com" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">
+                    <i class="fas fa-lock"></i> Password
+                </label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="Create a strong password" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="ref">
+                    <i class="fas fa-gift"></i> Referral Code (Optional)
+                </label>
+                <input type="text" id="ref" name="ref" class="form-control" placeholder="Enter referral code for bonus credits">
+            </div>
+            
+            <div style="background: rgba(78, 205, 196, 0.1); border: 1px solid rgba(78, 205, 196, 0.3); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                <i class="fas fa-info-circle" style="color: #4ecdc4;"></i>
+                <strong>Welcome Bonus:</strong> Get 1000 free ViralCredits when you verify your email!
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-bottom: 1rem;">
+                <i class="fas fa-user-plus"></i> Create Account
+            </button>
+        </form>
+        
+        <div class="text-center">
+            <p style="margin-bottom: 1rem; opacity: 0.8;">Already have an account?</p>
+            <a href="/login" class="btn btn-secondary">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </a>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h3 style="margin-bottom: 1rem; color: #4ecdc4;">
+            <i class="fas fa-shield-alt"></i> Your Privacy Matters
+        </h3>
+        <p style="opacity: 0.8; line-height: 1.6;">
+            We protect your personal information and never share it with third parties. 
+            Your email is only used for account verification and important updates.
+        </p>
+    </div>
+</div>
+
+<div id="successModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;">
+    <div style="background: rgba(255,255,255,0.1); backdrop-filter: blur(20px); border-radius: 15px; padding: 2rem; max-width: 400px; text-align: center;">
+        <div style="font-size: 3rem; color: #4ecdc4; margin-bottom: 1rem;">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <h3 style="margin-bottom: 1rem;">Registration Successful!</h3>
+        <p style="opacity: 0.8; margin-bottom: 2rem;">Please check your email for the verification code.</p>
+        <button onclick="closeModal()" class="btn btn-primary">Continue</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // get the CSRF token from the hidden input field
+    function getCSRFToken() {
+        const tokenInput = document.getElementById('csrf_token_input');
+        return tokenInput ? tokenInput.value : '';
+    }
+
+    // Custom alert function to replace window.alert
+    function showCustomAlert(message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.style.cssText = `
+            position: fixed; top: 20px; right: 20px;
+            background-color: #e74c3c; color: white;
+            padding: 15px; border-radius: 5px;
+            z-index: 10000; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            opacity: 0; transition: opacity 0.5s;
+        `;
+        alertDiv.textContent = message;
+        document.body.appendChild(alertDiv);
+        
+        setTimeout(() => alertDiv.style.opacity = 1, 10);
+        setTimeout(() => {
+            alertDiv.style.opacity = 0;
+            setTimeout(() => alertDiv.remove(), 500);
+        }, 3000);
+    }
+    
+    document.getElementById('registerForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="loading"></span> Creating Account...';
+        submitBtn.disabled = true;
+        
+        const formData = new FormData(this);
+        
+        fetch('/register', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-Token': getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('successModal').style.display = 'flex';
+                setTimeout(() => {
+                    window.location.href = `/verify_email/${data.user_id}`;
+                }, 2000);
+            } else {
+                throw new Error(data.error || 'Registration failed');
+            }
+        })
+        .catch(error => {
+            showCustomAlert('Error: ' + error.message);
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        });
+    });
+
+    function closeModal() {
+        document.getElementById('successModal').style.display = 'none';
+    }
+
+    // username availability check
+    let usernameTimeout;
+    document.getElementById('username').addEventListener('input', function() {
+        clearTimeout(usernameTimeout);
+        const username = this.value;
+        
+        if (username.length >= 3) {
+            usernameTimeout = setTimeout(() => {
+                // Simulate username check
+                const unavailable = ['admin', 'root', 'test', 'user'];
+                if (unavailable.includes(username.toLowerCase())) {
+                    this.style.borderColor = '#e74c3c';
+                } else {
+                    this.style.borderColor = '#2ecc71';
+                }
+            }, 500);
+        }
+    });
+</script>
+{% endblock %}

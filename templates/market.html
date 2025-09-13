@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block title %}Markets - ViralVault{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <i class="fas fa-chart-bar"></i> Live Markets
+</div>
+
+<div class="card">
+    <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between;">
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <button class="btn btn-primary filter-btn active" data-filter="all">
+                <i class="fas fa-globe"></i> All Markets
+            </button>
+            <button class="btn btn-secondary filter-btn" data-filter="tiktok">
+                <i class="fab fa-tiktok"></i> TikTok
+            </button>
+            <button class="btn btn-secondary filter-btn" data-filter="youtube">
+                <i class="fab fa-youtube"></i> YouTube
+            </button>
+        </div>
+        <button onclick="showCreateMarketModal()" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create Market
+        </button>
+    </div>
+</div>
+
+<div class="grid grid-2" id="marketsGrid">
+    {% for market in markets %}
+    <div class="card market-card" data-platform="{{ 'tiktok' if 'tiktok' in market.video.url else 'youtube' if 'youtube' in market.video.url else 'instagram' if 'instagram' in market.video.url else 'other' }}">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+            <div style="flex: 1;">
+                <h3 style="margin-bottom: 0.5rem; color: #4ecdc4;">
+                    Market #{{ market.id }}
+                </h3>
+                <div style="opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.5rem;">
+                    <i class="fas fa-link"></i> {{ market.video.url[:50] }}...
+                </div>
+                <div style="font-size: 0.9rem; opacity: 0.7;">
+                    Created {{ market.created_at.strftime('%m/%d/%Y at %H:%M') }}
+                </div>
+            </div>
+            <div style="text-align: right;">
+                {% set time_left = (market.created_at + timedelta(hours=market.virality_window_hours) - now) %}
+                {% if time_left.total_seconds() > 0 %}
+                    <div style="background: rgba(46, 204, 113, 0.2); color: #2ecc71; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.8rem; margin-bottom: 0.5rem;">
+                        <i class="fas fa-clock"></i> {{ '%dh %dm'|format(time_left.seconds//3600, (time_left.seconds//60)%60) }} left
+                    </div>
+                {% else %}
+                    <div style="background: rgba(231, 76, 60, 0.2); color: #e74c3c; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.8rem; margin-bottom: 0.5rem;">
+                        <i class="fas fa-times-circle"></i> Closed
+                    </div>
+                {% endif %}
+                <div style="font-size: 1.2rem; font-weight: bold; color: #ff6b6b;">
+                    {{ "%.2f"|format(market.initial_odds) }}x odds
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                <div style="text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #4ecdc4;" id="current-{{ market.id }}">
+                        {{ "{:,}".format(market.video.views) }}
+                    </div>
+                    <div style="opacity: 0.7; font-size: 0.9rem;">Current Views</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #ff6b6b;">
+                        {{ "{:,}".format(market.target_virality) }}
+                    </div>
+                    <div style="opacity: 0.7; font-size: 0.9rem;">Target Views</div>
+                </div>
+            </div>
+            
+            {% set progress = (market.video.views / market.target_virality) * 100 %}
+            <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 8px; margin-bottom: 0.5rem;">
+                <div style="background: linear-gradient(45deg, #4ecdc4, #44a08d); height: 100%; border-radius: 4px; width: {{ progress|int }}%; transition: width 0.3s ease;" id="progress-{{ market.id }}"></div>
+            </div>
+            <div style="text-align: center; font-size: 0.8rem; opacity: 0.7;" id="progress-text-{{ market.id }}">
+                {{ progress|int }}% of target reached
+            </div>
+        </div>
+        
+        {% if time_left.total_seconds() > 0 %}
+        <div style="display: flex; gap: 0.5rem;">
+            <button onclick="showBetModal({{ market.id }}, 'over', {{ market.initial_odds }})" class="btn btn-primary" style="flex: 1; font-size: 0.9rem;">
+                <i class="fas fa-arrow-up"></i> Bet Over
+            </button>
+            <button onclick="showBetModal({{ market.id }}, 'under', {{ 1 - market.initial_odds }})" class="btn btn-danger" style="flex: 1; font-size: 0.9rem;">
+                <i class="fas fa-arrow-down"></i> Bet Under
+            </button>
+        </div>
+        {% else %}
+        <div style="text-align: center; opacity: 0.6; padding: 1rem;">
+            <i class="fas fa-lock"></i> Market Closed
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% if not markets %}
+<div style="text-align: center; opacity: 0.6; padding: 4rem;">
+    <i class="fas fa-chart-bar" style="font-size: 4rem; margin-bottom: 1rem;"></i>
+    <h3>No Active Markets</h3>
+    <p>Be the first to create a market and start betting on viral content!</p>
+    <button onclick="showCreateMarketModal()" class="btn btn-primary" style="margin-top: 1rem;">
+        <i class="fas fa-plus"></i> Create First Market
+    </button>
+</div>
+{% endif %}
+
+<div id="betModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;">
+    <div style="background: rgba(255,255,255,0.1); backdrop-filter: blur(20px); border-radius: 15px; padding: 2rem; max-width: 400px; width: 90%;">
+        <h3 style="margin-bottom: 1.5rem; color: #4ecdc4;" id="betModalTitle">
+            <i class="fas fa-chart-line"></i> Place Bet
+        </h3>
+        <form id="betForm">
+            <input type="hidden" name="_csrf_token" id="betCsrfTokenInput" value="{{ csrf_token() }}">
+            <input type="hidden" id="betMarketId">
+            <input type="hidden" id="betPrediction">
+            
+            <div class="form-group">
+                <label>Bet Amount (ViralCredits)</label>
+                <input type="number" id="betAmount" class="form-control" placeholder="Enter amount" min="1" step="0.01">
+            </div>
+            
+            <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Odds:</span>
+                    <span id="betOdds" style="color: #4ecdc4; font-weight: bold;">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Potential Payout:</span>
+                    <span id="betPayout" style="color: #2ecc71; font-weight: bold;">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Potential Profit:</span>
+                    <span id="betProfit" style="color: #ff6b6b; font-weight: bold;">-</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    <i class="fas fa-check"></i> Place Bet
+                </button>
+                <button type="button" onclick="closeBetModal()" class="btn btn-secondary">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="createMarketModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;">
+    <div style="background: rgba(255,255,255,0.1); backdrop-filter: blur(20px); border-radius: 15px; padding: 2rem; max-width: 500px; width: 90%;">
+        <h3 style="margin-bottom: 1.5rem; color: #4ecdc4;">
+            <i class="fas fa-plus-circle"></i> Create New Market
+        </h3>
+        <form id="createMarketForm">
+            <input type="hidden" name="_csrf_token" id="createMarketCsrfTokenInput" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label>Select a Video</label>
+                <select id="postUrl" class="form-control" required>
+                    {% for video in videos %}
+                        <option value="{{ video.url }}">{{ video.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Target Virality (Views)</label>
+                <input type="number" id="targetVirality" class="form-control" placeholder="1000000" min="1000" required>
+            </div>
+            <div class="form-group">
+            <label>Betting Window (Hours)</label>
+            <input type="number" id="viralityWindowHours" class="form-control" placeholder="24" min="1" required>
+            </div>
+            <div style="background: rgba(78, 205, 196, 0.1); border: 1px solid rgba(78, 205, 196, 0.3); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                <i class="fas fa-info-circle" style="color: #4ecdc4;"></i>
+                <strong>AI Prediction:</strong> Our system will analyze the content and set initial odds based on viral potential.
+            </div>
+            
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    <i class="fas fa-robot"></i> Create Market
+                </button>
+                <button type="button" onclick="closeCreateMarketModal()" class="btn btn-secondary">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentOdds = 1.0;
+
+// Helper function to get the CSRF token from a specific hidden input field
+function getCSRFToken(elementId) {
+    const tokenInput = document.getElementById(elementId);
+    return tokenInput ? tokenInput.value : '';
+}
+
+// Filter functionality
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(b => {
+            b.classList.remove('active');
+            b.classList.add('btn-secondary');
+            b.classList.remove('btn-primary');
+        });
+        
+        this.classList.add('active');
+        this.classList.add('btn-primary');
+        this.classList.remove('btn-secondary');
+        
+        const filter = this.dataset.filter;
+        document.querySelectorAll('.market-card').forEach(card => {
+            if (filter === 'all' || card.dataset.platform === filter) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+});
+
+// Bet modal functions
+function showBetModal(marketId, prediction, odds) {
+    currentOdds = odds;
+    document.getElementById('betMarketId').value = marketId;
+    document.getElementById('betPrediction').value = prediction;
+    document.getElementById('betModalTitle').innerHTML = `
+        <i class="fas fa-${prediction === 'over' ? 'arrow-up' : 'arrow-down'}"></i> 
+        Bet ${prediction.toUpperCase()} - Market #${marketId}
+    `;
+    document.getElementById('betOdds').textContent = `${odds.toFixed(2)}x`;
+    document.getElementById('betModal').style.display = 'flex';
+    updateBetCalculations();
+}
+
+function closeBetModal() {
+    document.getElementById('betModal').style.display = 'none';
+    document.getElementById('betForm').reset();
+}
+
+function updateBetCalculations() {
+    const amount = parseFloat(document.getElementById('betAmount').value) || 0;
+    const payout = amount * currentOdds;
+    const profit = payout - amount;
+    
+    document.getElementById('betPayout').textContent = `${payout.toFixed(2)} VC`;
+    document.getElementById('betProfit').textContent = `${profit.toFixed(2)} VC`;
+}
+
+document.getElementById('betAmount').addEventListener('input', updateBetCalculations);
+
+document.getElementById('betForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const amount = parseFloat(document.getElementById('betAmount').value);
+    if (!amount || amount <= 0) {
+        alert('Please enter a valid bet amount');
+        return;
+    }
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.innerHTML = '<span class="loading"></span> Placing Bet...';
+    submitBtn.disabled = true;
+    
+    const data = {
+        market_id: document.getElementById('betMarketId').value,
+        amount: amount,
+        prediction: document.getElementById('betPrediction').value
+    };
+    
+    fetch('/api/place_bet', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCSRFToken('betCsrfTokenInput')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Bet placed successfully!');
+            closeBetModal();
+            location.reload();
+        } else {
+            throw new Error(data.error || 'Failed to place bet');
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+        submitBtn.innerHTML = '<i class="fas fa-check"></i> Place Bet';
+        submitBtn.disabled = false;
+    });
+});
+
+// Create market modal functions
+function showCreateMarketModal() {
+    document.getElementById('createMarketModal').style.display = 'flex';
+}
+
+function closeCreateMarketModal() {
+    document.getElementById('createMarketModal').style.display = 'none';
+    document.getElementById('createMarketForm').reset();
+}
+
+document.getElementById('createMarketForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.innerHTML = '<span class="loading"></span> Creating...';
+    submitBtn.disabled = true;
+    
+    const data = {
+        post_id: document.getElementById('postUrl').value,
+        target_virality: parseInt(document.getElementById('targetVirality').value),
+        virality_window_hours: parseInt(document.getElementById('viralityWindowHours').value)
+    };
+    
+    fetch('/api/create_market', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCSRFToken('createMarketCsrfTokenInput')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Market created successfully!');
+            closeCreateMarketModal();
+            location.reload();
+        } else {
+            throw new Error(data.error || 'Failed to create market');
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+        submitBtn.innerHTML = '<i class="fas fa-robot"></i> Create Market';
+        submitBtn.disabled = false;
+    });
+});
+</script>
+{% endblock %}
